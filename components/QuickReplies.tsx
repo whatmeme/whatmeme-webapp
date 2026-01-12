@@ -4,6 +4,7 @@ import { IoMdSend } from "react-icons/io";
 
 interface QuickRepliesProps {
   onSelect: (text: string) => void;
+  disabled?: boolean;
 }
 
 const quickReplies = [
@@ -24,7 +25,7 @@ const quickReplies = [
   "밈 랜덤 추천",
 ];
 
-export default function QuickReplies({ onSelect }: QuickRepliesProps) {
+export default function QuickReplies({ onSelect, disabled = false }: QuickRepliesProps) {
   return (
     <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-950">
       <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
@@ -36,7 +37,12 @@ export default function QuickReplies({ onSelect }: QuickRepliesProps) {
             <button
               key={index}
               onClick={() => onSelect(reply)}
-              className="bg-zinc-900/50 hover:bg-zinc-800/50 text-xs text-zinc-300 border border-zinc-800 rounded-full px-4 py-1.5 transition-all cursor-pointer whitespace-nowrap font-medium inline-flex items-center gap-2"
+              disabled={disabled}
+              className={`bg-zinc-900/50 text-xs text-zinc-300 border border-zinc-800 rounded-full px-4 py-1.5 transition-all whitespace-nowrap font-medium inline-flex items-center gap-2 ${
+                disabled
+                  ? "cursor-not-allowed opacity-40"
+                  : "hover:bg-zinc-800/50 cursor-pointer"
+              }`}
             >
               <IoMdSend className="h-3.5 w-3.5 text-zinc-400" />
               {reply}

@@ -9,6 +9,21 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+type ToolsCache = { tools: any[]; fetchedAt: number };
+const globalForMcp = globalThis as typeof globalThis & {
+  __mcpToolsCache?: ToolsCache | null;
+  __mcpToolsRefreshPromise?: Promise<any[]> | null;
+};
+
+const getToolsCache = () => globalForMcp.__mcpToolsCache ?? null;
+const setToolsCache = (cache: ToolsCache | null) => {
+  globalForMcp.__mcpToolsCache = cache;
+};
+const getToolsRefreshPromise = () => globalForMcp.__mcpToolsRefreshPromise ?? null;
+const setToolsRefreshPromise = (promise: Promise<any[]> | null) => {
+  globalForMcp.__mcpToolsRefreshPromise = promise;
+};
+
 // SSE 형식 응답 파싱
 function parseSSEResponse(text: string): any {
   // SSE 형식: "event: message\ndata: {...}\n\n"
@@ -122,6 +137,17 @@ async function callMCPServer(method: string, params?: any) {
 
 // MCP 도구 목록 가져오기
 async function getMCPTools() {
+  const cached = getToolsCache();
+  if (cached) {
+    return cached.tools;
+  }
+
+  const inFlight = getToolsRefreshPromise();
+  if (inFlight) {
+    return await inFlight;
+  }
+
+  const refreshPromise = (async () => {
   try {
     // MCP 프로토콜: tools/list는 params 없이 호출
     const response = await callMCPServer("tools/list");
@@ -143,11 +169,20 @@ async function getMCPTools() {
                   response.tools || 
                   [];
     console.log(`MCP 도구 ${tools.length}개 발견`);
+    if (tools.length > 0) {
+      setToolsCache({ tools, fetchedAt: Date.now() });
+    }
     return tools;
   } catch (error) {
     console.error("MCP 도구 목록 가져오기 실패:", error);
-    return [];
+    return getToolsCache()?.tools || [];
+  } finally {
+    setToolsRefreshPromise(null);
   }
+  })();
+
+  setToolsRefreshPromise(refreshPromise);
+  return await refreshPromise;
 }
 
 // MCP 도구를 OpenAI Tool 형식으로 변환
@@ -274,14 +309,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`사용 가능한 MCP 도구: ${tools.length}개`);
 
-    // OpenAI Chat Completion 호출
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `당신은 한국 밈 트렌드 분석 전문가입니다. 사용자의 질문에 답하기 위해 MCP 도구를 사용할 수 있습니다.
-          
+    const systemPrompt = `당신은 한국 밈 트렌드 분석 전문가입니다. 사용자의 질문에 답하기 위해 MCP 도구를 사용할 수 있습니다.
+        
 사용 가능한 도구:
 - check_meme_status: 밈의 현재 유행 상태 확인
 - get_trending_memes: 현재 트렌딩 TOP 5 밈 목록
@@ -289,75 +318,144 @@ export async function POST(request: NextRequest) {
 - search_meme_meaning: 밈의 뜻/유래/사용예시 검색
 - get_random_meme: 랜덤 밈 추천
 
-사용자의 질문을 이해하고, 필요하면 적절한 도구를 사용하여 정확하고 친절하게 답변하세요.`,
-        },
-        ...messages.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-      ],
-      tools: tools,
-      tool_choice: "auto",
-      temperature: 0.7,
+사용자의 질문을 이해하고, 필요하면 적절한 도구를 사용하여 정확하고 친절하게 답변하세요.`;
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const toolCalls: Record<number, { id?: string; name: string; arguments: string }> = {};
+
+          const completionStream = await openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...messages.map((msg: any) => ({
+                role: msg.role,
+                content: msg.content,
+              })),
+            ],
+            tools: tools,
+            tool_choice: "auto",
+            temperature: 0.7,
+            stream: true,
+          });
+
+          for await (const chunk of completionStream) {
+            const delta = chunk.choices[0]?.delta;
+            if (!delta) continue;
+
+            if (delta.tool_calls) {
+              for (const toolCall of delta.tool_calls) {
+                const index = toolCall.index ?? 0;
+                const current = toolCalls[index] || { name: "", arguments: "" };
+                toolCalls[index] = current;
+                if (toolCall.id) current.id = toolCall.id;
+                if (toolCall.function?.name) current.name += toolCall.function.name;
+                if (toolCall.function?.arguments) current.arguments += toolCall.function.arguments;
+              }
+              continue;
+            }
+
+            if (typeof delta.content === "string") {
+              const payload = JSON.stringify({ type: "delta", content: delta.content });
+              controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+            }
+          }
+
+          if (Object.keys(toolCalls).length > 0) {
+            const firstToolCall = toolCalls[0];
+            const functionName = firstToolCall?.name || "";
+            let functionArgs: Record<string, any> = {};
+            try {
+              functionArgs = firstToolCall?.arguments ? JSON.parse(firstToolCall.arguments) : {};
+            } catch {
+              functionArgs = {};
+            }
+
+            console.log(`도구 호출: ${functionName}`, functionArgs);
+
+            const toolResult = await executeMCPTool(functionName, functionArgs);
+
+            const metaPayload = JSON.stringify({
+              type: "meta",
+              metadata: {
+                toolCall: {
+                  name: functionName,
+                  arguments: functionArgs,
+                },
+                mcpResponse: toolResult,
+              },
+            });
+            controller.enqueue(encoder.encode(`data: ${metaPayload}\n\n`));
+
+            const toolCallId = firstToolCall?.id || "tool_call_0";
+            const finalStream = await openai.chat.completions.create({
+              model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+              messages: [
+                {
+                  role: "system",
+                  content: "당신은 한국 밈 트렌드 분석 전문가입니다. 도구 실행 결과를 바탕으로 사용자에게 친절하고 자연스럽게 답변하세요.",
+                },
+                ...messages.map((msg: any) => ({
+                  role: msg.role,
+                  content: msg.content,
+                })),
+                {
+                  role: "assistant",
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: toolCallId,
+                      type: "function",
+                      function: {
+                        name: functionName,
+                        arguments: JSON.stringify(functionArgs),
+                      },
+                    },
+                  ],
+                },
+                {
+                  role: "tool",
+                  tool_call_id: toolCallId,
+                  name: functionName,
+                  content: toolResult,
+                },
+              ],
+              tools: tools,
+              tool_choice: "none",
+              temperature: 0.7,
+              stream: true,
+            });
+
+            for await (const finalChunk of finalStream) {
+              const finalDelta = finalChunk.choices[0]?.delta;
+              if (finalDelta?.content) {
+                const payload = JSON.stringify({ type: "delta", content: finalDelta.content });
+                controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+              }
+            }
+          }
+
+          controller.enqueue(encoder.encode(`data: {"type":"done"}\n\n`));
+          controller.close();
+        } catch (error) {
+          const errorPayload = JSON.stringify({
+            type: "error",
+            error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+          });
+          controller.enqueue(encoder.encode(`data: ${errorPayload}\n\n`));
+          controller.close();
+        }
+      },
     });
 
-    const message = completion.choices[0].message;
-
-    // Tool Calling이 필요한 경우
-    if (message.tool_calls && message.tool_calls.length > 0) {
-      const toolCall = message.tool_calls[0];
-      const functionName = toolCall.function.name;
-      const functionArgs = JSON.parse(toolCall.function.arguments || "{}");
-
-      console.log(`도구 호출: ${functionName}`, functionArgs);
-
-      // MCP 도구 실행
-      const toolResult = await executeMCPTool(functionName, functionArgs);
-
-      // 도구 결과를 포함하여 다시 LLM 호출
-      const finalCompletion = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `당신은 한국 밈 트렌드 분석 전문가입니다. 도구 실행 결과를 바탕으로 사용자에게 친절하고 자연스럽게 답변하세요.`,
-          },
-          ...messages,
-          {
-            role: "assistant",
-            content: null,
-            tool_calls: message.tool_calls,
-          },
-          {
-            role: "tool",
-            tool_call_id: toolCall.id,
-            name: functionName,
-            content: toolResult,
-          },
-        ],
-        tools: tools,
-        tool_choice: "auto",
-        temperature: 0.7,
-      });
-
-      return NextResponse.json({
-        role: "assistant",
-        content: finalCompletion.choices[0].message.content,
-        metadata: {
-          toolCall: {
-            name: functionName,
-            arguments: functionArgs,
-          },
-          mcpResponse: toolResult,
-        },
-      });
-    }
-
-    // 일반 응답
-    return NextResponse.json({
-      role: "assistant",
-      content: message.content,
-      metadata: null,
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      },
     });
   } catch (error: any) {
     console.error("Chat API 오류:", error);

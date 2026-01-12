@@ -24,17 +24,21 @@ export default function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const autoScrollRef = useRef(true);
 
   // 메시지가 추가될 때마다 스크롤
   useEffect(() => {
     if (!messagesContainerRef.current || messages.length === 0) {
       return;
     }
+    if (!autoScrollRef.current) {
+      return;
+    }
     messagesContainerRef.current.scrollTo({
       top: messagesContainerRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages.length]);
+  }, [messages]);
 
   // 텍스트 영역 자동 높이 조절
   useEffect(() => {
@@ -89,17 +93,78 @@ export default function ChatInterface() {
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      const contentType = response.headers.get("content-type") || "";
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.content || "응답을 받을 수 없습니다.",
-        timestamp: new Date(),
-        metadata: data.metadata || null,
-      };
+      if (contentType.includes("text/event-stream") && response.body) {
+        const assistantId = (Date.now() + 1).toString();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantId,
+            role: "assistant",
+            content: "",
+            timestamp: new Date(),
+            metadata: null,
+          },
+        ]);
 
-      setMessages((prev) => [...prev, assistantMessage]);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+
+          for (const part of parts) {
+            const line = part
+              .split("\n")
+              .find((item) => item.startsWith("data: "));
+            if (!line) continue;
+
+            const json = line.replace("data: ", "").trim();
+            if (!json) continue;
+
+            const payload = JSON.parse(json);
+
+            if (payload.type === "delta") {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantId
+                    ? { ...msg, content: msg.content + (payload.content || "") }
+                    : msg
+                )
+              );
+            } else if (payload.type === "meta") {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantId
+                    ? { ...msg, metadata: payload.metadata || null }
+                    : msg
+                )
+              );
+            } else if (payload.type === "error") {
+              throw new Error(payload.error || "알 수 없는 오류가 발생했습니다.");
+            }
+          }
+        }
+      } else {
+        const data = await response.json();
+
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: data.content || "응답을 받을 수 없습니다.",
+          timestamp: new Date(),
+          metadata: data.metadata || null,
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -122,6 +187,9 @@ export default function ChatInterface() {
   };
 
   const handleQuickReply = (text: string) => {
+    if (isLoading) {
+      return;
+    }
     void sendMessage(text);
     textareaRef.current?.focus();
   };
@@ -169,6 +237,14 @@ export default function ChatInterface() {
       <div
         className="relative flex-1 min-h-0 overflow-y-auto"
         ref={messagesContainerRef}
+        onScroll={() => {
+          const container = messagesContainerRef.current;
+          if (!container) return;
+          const threshold = 80;
+          const atBottom =
+            container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+          autoScrollRef.current = atBottom;
+        }}
       >
         {messages.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -300,7 +376,7 @@ export default function ChatInterface() {
       </div>
 
       {/* 퀵 리플라이 (입력창 위 경계선) */}
-      <QuickReplies onSelect={handleQuickReply} />
+      <QuickReplies onSelect={handleQuickReply} disabled={isLoading} />
 
       {/* 입력 영역 (Full-width 에디터 스타일) - Glassmorphism */}
       <div className="shrink-0 border-t border-zinc-800 backdrop-blur-xl bg-zinc-950/70">
