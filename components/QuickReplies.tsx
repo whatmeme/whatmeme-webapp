@@ -1,6 +1,6 @@
 "use client";
 
-import { IoMdChatbubbles } from "react-icons/io";
+import { IoMdSend } from "react-icons/io";
 
 interface QuickRepliesProps {
   onSelect: (text: string) => void;
@@ -29,7 +29,7 @@ export default function QuickReplies({ onSelect }: QuickRepliesProps) {
               onClick={() => onSelect(reply)}
               className="bg-zinc-900/50 hover:bg-zinc-800/50 text-xs text-zinc-300 border border-zinc-800 rounded-full px-4 py-1.5 transition-all cursor-pointer whitespace-nowrap font-medium inline-flex items-center gap-2"
             >
-              <IoMdChatbubbles className="h-3.5 w-3.5 text-zinc-400" />
+              <IoMdSend className="h-3.5 w-3.5 text-zinc-400" />
               {reply}
             </button>
           ))}

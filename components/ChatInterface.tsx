@@ -109,11 +109,15 @@ export default function ChatInterface() {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
     }
   };
 
   const handleSend = async () => {
     await sendMessage(input);
+    textareaRef.current?.focus();
   };
 
   const handleQuickReply = (text: string) => {
@@ -185,6 +189,45 @@ export default function ChatInterface() {
 
                 return (
                   <div key={message.id} className="space-y-1">
+                    {/* MCP 메타데이터 */}
+                    {message.role === "assistant" && message.metadata?.toolCall && (
+                      <div className="ml-11 mr-2 mb-2">
+                        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
+                          <div className="mb-3 flex items-center space-x-2">
+                            <span className="text-zinc-400">🔧</span>
+                            <span className="font-bold text-zinc-300">MCP 도구 호출</span>
+                          </div>
+                          <div className="space-y-2 text-zinc-400">
+                            <div>
+                              <span className="font-medium">도구:</span>
+                              <span className="ml-2 text-zinc-300">{message.metadata.toolCall.name}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Request:</span>
+                              <pre className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs border border-zinc-800">
+                                {JSON.stringify(
+                                  {
+                                    method: "tools/call",
+                                    params: {
+                                      name: message.metadata.toolCall.name,
+                                      arguments: message.metadata.toolCall.arguments,
+                                    },
+                                  },
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            </div>
+                            <div>
+                              <span className="font-medium">MCP 응답:</span>
+                              <div className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs whitespace-pre-wrap break-words text-zinc-300 border border-zinc-800">
+                                {message.metadata.mcpResponse}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div
                       className={`flex items-start space-x-3 px-2 py-1.5 hover:bg-zinc-900/30 rounded-md transition-colors duration-200 ${
                         message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
@@ -229,45 +272,6 @@ export default function ChatInterface() {
                       </div>
                     </div>
 
-                    {/* MCP 메타데이터 */}
-                    {message.role === "assistant" && message.metadata?.toolCall && (
-                      <div className="ml-11 mr-2 mb-2">
-                        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
-                          <div className="mb-3 flex items-center space-x-2">
-                            <span className="text-zinc-400">🔧</span>
-                            <span className="font-bold text-zinc-300">MCP 도구 호출</span>
-                          </div>
-                          <div className="space-y-2 text-zinc-400">
-                            <div>
-                              <span className="font-medium">도구:</span>
-                              <span className="ml-2 text-zinc-300">{message.metadata.toolCall.name}</span>
-                            </div>
-                            <div>
-                              <span className="font-medium">Request:</span>
-                              <pre className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs border border-zinc-800">
-                                {JSON.stringify(
-                                  {
-                                    method: "tools/call",
-                                    params: {
-                                      name: message.metadata.toolCall.name,
-                                      arguments: message.metadata.toolCall.arguments,
-                                    },
-                                  },
-                                  null,
-                                  2
-                                )}
-                              </pre>
-                            </div>
-                            <div>
-                              <span className="font-medium">MCP 응답:</span>
-                              <div className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs whitespace-pre-wrap break-words text-zinc-300 border border-zinc-800">
-                                {message.metadata.mcpResponse}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -294,9 +298,7 @@ export default function ChatInterface() {
       </div>
 
       {/* 퀵 리플라이 (입력창 위 경계선) */}
-      {messages.length === 0 && (
-        <QuickReplies onSelect={handleQuickReply} />
-      )}
+      <QuickReplies onSelect={handleQuickReply} />
 
       {/* 입력 영역 (Full-width 에디터 스타일) - Glassmorphism */}
       <div className="shrink-0 border-t border-zinc-800 backdrop-blur-xl bg-zinc-950/70">
@@ -304,16 +306,6 @@ export default function ChatInterface() {
           <div className="mx-auto max-w-4xl">
             <div className="w-full bg-zinc-900/50 border border-zinc-800 focus-within:ring-2 focus-within:ring-white/20 focus-within:border-white/20 rounded-xl transition-all duration-300 shadow-[0_0_50px_-12px_rgb(0,0,0,0.25)]">
               <div className="flex items-center space-x-3 p-4">
-                <button
-                  type="button"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-md transition-colors duration-200"
-                  disabled={isLoading}
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                </button>
-
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -325,16 +317,6 @@ export default function ChatInterface() {
                   disabled={isLoading}
                   style={{ maxHeight: "200px" }}
                 />
-
-                <button
-                  type="button"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-md transition-colors duration-200"
-                  disabled={isLoading}
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button>
 
                 <button
                   onClick={handleSend}
