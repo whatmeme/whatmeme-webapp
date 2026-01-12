@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import QuickReplies from "./QuickReplies";
 
 interface Message {
   id: string;
@@ -20,15 +21,30 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 메시지가 추가될 때마다 스크롤
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!messagesContainerRef.current || messages.length === 0) {
+      return;
+    }
+    messagesContainerRef.current.scrollTo({
+      top: messagesContainerRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages.length]);
 
-  const handleSend = async () => {
-    const trimmedInput = input.trim();
+  // 텍스트 영역 자동 높이 조절
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [input]);
+
+  const sendMessage = async (messageText: string) => {
+    const trimmedInput = messageText.trim();
     if (!trimmedInput || isLoading) {
       return;
     }
@@ -40,14 +56,12 @@ export default function ChatInterface() {
       timestamp: new Date(),
     };
 
-    // 사용자 메시지 추가
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
 
     try {
-      // LLM 채팅 API 호출 (대화 히스토리 포함)
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -63,8 +77,6 @@ export default function ChatInterface() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
-        // 특정 오류에 대한 친화적인 메시지
         let errorMessage = errorData.error || `서버 오류 (${response.status})`;
         
         if (response.status === 429) {
@@ -100,6 +112,15 @@ export default function ChatInterface() {
     }
   };
 
+  const handleSend = async () => {
+    await sendMessage(input);
+  };
+
+  const handleQuickReply = (text: string) => {
+    void sendMessage(text);
+    textareaRef.current?.focus();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -107,140 +128,231 @@ export default function ChatInterface() {
     }
   };
 
+  // 메시지 그룹화: 같은 발신자의 연속된 메시지는 그룹화
+  const shouldShowAvatar = (current: Message, previous: Message | null) => {
+    if (!previous) return true;
+    if (current.role !== previous.role) return true;
+    const timeDiff = current.timestamp.getTime() - previous.timestamp.getTime();
+    return timeDiff > 5 * 60 * 1000; // 5분 이상 차이나면 새 그룹
+  };
+
+  // 아바타 컴포넌트
+  const Avatar = ({ role, show }: { role: "user" | "assistant"; show: boolean }) => {
+    if (!show) {
+      return <div className="w-8 shrink-0" />;
+    }
+
+    if (role === "assistant") {
+      return (
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-600">
+          <span className="text-xs font-bold text-white">W</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800">
+        <svg className="h-5 w-5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex flex-col h-[600px] border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg bg-white dark:bg-gray-900">
-      {/* 메시지 영역 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-            <p className="mb-4">안녕하세요! WhatMeme에 오신 것을 환영합니다.</p>
-            <p className="text-sm mb-2">다음과 같은 질문을 해보세요:</p>
-            <ul className="text-sm space-y-1 text-left max-w-md mx-auto">
-              <li>• "요즘 핫한 밈 뭐야?"</li>
-              <li>• "매끈매끈하다 밈 뜻 알려줘"</li>
-              <li>• "시험 스트레스 받을 때 밈 추천해줘"</li>
-              <li>• "밈 랜덤 추천"</li>
-            </ul>
-          </div>
-        )}
-        {messages.map((message) => (
-          <div key={message.id} className="space-y-2">
-            <div
-              className={`flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.role === "user"
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                }`}
-              >
-                <div className="whitespace-pre-wrap break-words">
-                  {message.content}
+    <div className="flex h-full min-h-0 flex-col bg-zinc-950">
+      {/* 채팅 메시지 영역 */}
+      <div className="flex-1 min-h-0 overflow-y-auto" ref={messagesContainerRef}>
+        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-6 py-6">
+          {messages.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="text-center">
+                <div className="mb-4 flex justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-zinc-900/50">
+                    <svg className="h-8 w-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </div>
                 </div>
-                <div
-                  className={`text-xs mt-1 ${
-                    message.role === "user"
-                      ? "text-blue-100"
-                      : "text-gray-500 dark:text-gray-400"
-                  }`}
-                >
-                  {message.timestamp.toLocaleTimeString("ko-KR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
+                <p className="text-sm font-medium text-zinc-400">메시지를 입력하여 대화를 시작하세요</p>
               </div>
             </div>
-            
-            {/* MCP 메타데이터 표시 */}
-            {message.role === "assistant" && message.metadata?.toolCall && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 p-3 text-sm">
-                  <div className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    🔧 MCP 도구 호출 정보
+          ) : (
+            <div className="space-y-1">
+              {messages.map((message, index) => {
+                const previous = index > 0 ? messages[index - 1] : null;
+                const showAvatar = shouldShowAvatar(message, previous);
+                const isGrouped = !showAvatar && message.role === previous?.role;
+
+                return (
+                  <div key={message.id} className="space-y-1">
+                    <div
+                      className={`flex items-start space-x-3 px-2 py-1.5 hover:bg-zinc-900/30 rounded-md transition-colors duration-200 ${
+                        message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
+                      }`}
+                    >
+                      <Avatar role={message.role} show={showAvatar} />
+
+                      <div
+                        className={`flex flex-col min-w-0 flex-1 ${
+                          message.role === "user" ? "items-end" : "items-start"
+                        }`}
+                      >
+                        {/* 발신자 이름 (그룹의 첫 메시지에만) */}
+                        {showAvatar && message.role === "assistant" && (
+                          <div className="mb-1 flex items-center space-x-2">
+                            <span className="text-xs font-bold text-zinc-200">WhatMeme Bot</span>
+                          </div>
+                        )}
+
+                        {/* 메시지 버블 - shadcn/ui 스타일 */}
+                        <div
+                          className={`max-w-[75%] px-5 py-3 text-[15px] leading-relaxed shadow-sm ${
+                            message.role === "user"
+                              ? "bg-white text-zinc-900 font-medium rounded-2xl rounded-tr-sm"
+                              : "bg-zinc-800/50 text-zinc-200 border border-white/5 rounded-2xl rounded-tl-sm"
+                          } ${isGrouped ? "mt-0.5" : ""}`}
+                        >
+                          <div className="whitespace-pre-wrap break-words">
+                            {message.content}
+                          </div>
+                        </div>
+
+                        {/* 타임스탬프 (그룹의 첫 메시지에만) */}
+                        {showAvatar && (
+                          <span className="mt-1 text-xs font-normal text-zinc-500">
+                            {message.timestamp.toLocaleTimeString("ko-KR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* MCP 메타데이터 */}
+                    {message.role === "assistant" && message.metadata?.toolCall && (
+                      <div className="ml-11 mr-2 mb-2">
+                        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-xs">
+                          <div className="mb-3 flex items-center space-x-2">
+                            <span className="text-zinc-400">🔧</span>
+                            <span className="font-bold text-zinc-300">MCP 도구 호출</span>
+                          </div>
+                          <div className="space-y-2 text-zinc-400">
+                            <div>
+                              <span className="font-medium">도구:</span>
+                              <span className="ml-2 text-zinc-300">{message.metadata.toolCall.name}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">Request:</span>
+                              <pre className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs border border-zinc-800">
+                                {JSON.stringify(
+                                  {
+                                    method: "tools/call",
+                                    params: {
+                                      name: message.metadata.toolCall.name,
+                                      arguments: message.metadata.toolCall.arguments,
+                                    },
+                                  },
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            </div>
+                            <div>
+                              <span className="font-medium">MCP 응답:</span>
+                              <div className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs whitespace-pre-wrap break-words text-zinc-300 border border-zinc-800">
+                                {message.metadata.mcpResponse}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="mb-2">
-                    <span className="font-medium text-gray-600 dark:text-gray-400">
-                      도구:
-                    </span>
-                    <span className="ml-2 text-gray-800 dark:text-gray-200">
-                      {message.metadata.toolCall.name}
-                    </span>
-                  </div>
-                  
-                  <div className="mb-3">
-                    <span className="font-medium text-gray-600 dark:text-gray-400">
-                      Request:
-                    </span>
-                    <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto">
-                      {JSON.stringify(
-                        {
-                          method: "tools/call",
-                          params: {
-                            name: message.metadata.toolCall.name,
-                            arguments: message.metadata.toolCall.arguments,
-                          },
-                        },
-                        null,
-                        2
-                      )}
-                    </pre>
-                  </div>
-                  
-                  <div>
-                    <span className="font-medium text-gray-600 dark:text-gray-400">
-                      MCP 응답:
-                    </span>
-                    <div className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs whitespace-pre-wrap break-words">
-                      {message.metadata.mcpResponse}
+                );
+              })}
+
+              {/* 로딩 인디케이터 */}
+              {isLoading && (
+                <div className="flex items-start space-x-3 px-2 py-1.5">
+                  <Avatar role="assistant" show={true} />
+                  <div className="flex flex-col">
+                    <span className="mb-1 text-xs font-bold text-zinc-200">WhatMeme Bot</span>
+                    <div className="bg-zinc-800/50 text-zinc-200 border border-white/5 rounded-2xl rounded-tl-sm px-5 py-3 shadow-sm">
+                      <div className="flex space-x-1.5">
+                        <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400 [animation-delay:-0.3s]"></div>
+                        <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400 [animation-delay:-0.15s]"></div>
+                        <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-200 dark:bg-gray-800 rounded-lg px-4 py-2">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 퀵 리플라이 (입력창 위 경계선) */}
+      {messages.length === 0 && (
+        <QuickReplies onSelect={handleQuickReply} />
+      )}
+
+      {/* 입력 영역 (Full-width 에디터 스타일) - Glassmorphism */}
+      <div className="shrink-0 border-t border-zinc-800 backdrop-blur-xl bg-zinc-950/70">
+        <div className="p-5">
+          <div className="mx-auto max-w-4xl">
+            <div className="w-full bg-zinc-900/50 border border-zinc-800 focus-within:ring-2 focus-within:ring-white/20 focus-within:border-white/20 rounded-xl transition-all duration-300 shadow-[0_0_50px_-12px_rgb(0,0,0,0.25)]">
+              <div className="flex items-center space-x-3 p-4">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-md transition-colors duration-200"
+                  disabled={isLoading}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                </button>
+
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)"
+                  className="flex-1 resize-none border-0 bg-transparent py-2 text-sm font-medium leading-6 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-0"
+                  rows={1}
+                  disabled={isLoading}
+                  style={{ maxHeight: "200px" }}
+                />
+
+                <button
+                  type="button"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-md transition-colors duration-200"
+                  disabled={isLoading}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={handleSend}
+                  disabled={isLoading || !input.trim()}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${
+                    input.trim() && !isLoading
+                      ? "bg-indigo-500 text-white hover:bg-indigo-600"
+                      : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                  }`}
+                  type="button"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* 입력 영역 */}
-      <div className="border-t border-gray-300 dark:border-gray-700 p-4">
-        <div className="flex space-x-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="메시지를 입력하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 resize-none"
-            rows={2}
-            disabled={isLoading}
-          />
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            disabled={isLoading || !input.trim()}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            type="button"
-          >
-            전송
-          </button>
         </div>
       </div>
     </div>
