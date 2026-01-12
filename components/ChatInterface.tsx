@@ -22,6 +22,7 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoScrollRef = useRef(true);
@@ -96,6 +97,7 @@ export default function ChatInterface() {
       const contentType = response.headers.get("content-type") || "";
 
       if (contentType.includes("text/event-stream") && response.body) {
+        setIsStreaming(true);
         const assistantId = (Date.now() + 1).toString();
         setMessages((prev) => [
           ...prev,
@@ -152,6 +154,8 @@ export default function ChatInterface() {
             }
           }
         }
+
+        setIsStreaming(false);
       } else {
         const data = await response.json();
 
@@ -173,6 +177,7 @@ export default function ChatInterface() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+      setIsStreaming(false);
     } finally {
       setIsLoading(false);
       requestAnimationFrame(() => {
@@ -322,7 +327,7 @@ export default function ChatInterface() {
                         {/* 발신자 이름 (그룹의 첫 메시지에만) */}
                         {showAvatar && message.role === "assistant" && (
                           <div className="mb-1 flex items-center space-x-2">
-                            <span className="text-xs font-bold text-zinc-200">WhatMeme Bot</span>
+                            <span className="text-xs font-bold text-zinc-200">whatmeme Bot</span>
                           </div>
                         )}
 
@@ -355,7 +360,7 @@ export default function ChatInterface() {
               })}
 
               {/* 로딩 인디케이터 */}
-              {isLoading && (
+              {isLoading && !isStreaming && (
                 <div className="flex items-start space-x-3 px-2 py-1.5">
                   <Avatar role="assistant" show={true} />
                   <div className="flex flex-col">
