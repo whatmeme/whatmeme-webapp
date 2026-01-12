@@ -165,22 +165,26 @@ export default function ChatInterface() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-zinc-950">
       {/* 채팅 메시지 영역 */}
-      <div className="flex-1 min-h-0 overflow-y-auto" ref={messagesContainerRef}>
-        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-6 py-6">
-          {messages.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center">
-              <div className="text-center">
-                <div className="mb-4 flex justify-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-zinc-900/50">
-                    <svg className="h-8 w-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                  </div>
+      <div
+        className="relative flex-1 min-h-0 overflow-y-auto"
+        ref={messagesContainerRef}
+      >
+        {messages.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4 flex justify-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-zinc-900/50">
+                  <svg className="h-8 w-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
                 </div>
-                <p className="text-sm font-medium text-zinc-400">메시지를 입력하여 대화를 시작하세요</p>
               </div>
+              <p className="text-sm font-medium text-zinc-400">메시지를 입력하여 대화를 시작하세요</p>
             </div>
-          ) : (
+          </div>
+        )}
+        <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-6 py-6">
+          {messages.length > 0 && (
             <div className="space-y-1">
               {messages.map((message, index) => {
                 const previous = index > 0 ? messages[index - 1] : null;
@@ -204,7 +208,7 @@ export default function ChatInterface() {
                             </div>
                             <div>
                               <span className="font-medium">Request:</span>
-                              <pre className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs border border-zinc-800">
+                              <pre className="mt-1 rounded-lg bg-zinc-950 p-2 text-xs border border-zinc-800 whitespace-pre-wrap break-words">
                                 {JSON.stringify(
                                   {
                                     method: "tools/call",
@@ -220,7 +224,7 @@ export default function ChatInterface() {
                             </div>
                             <div>
                               <span className="font-medium">MCP 응답:</span>
-                              <div className="mt-1 max-h-32 overflow-auto rounded-lg bg-zinc-950 p-2 text-xs whitespace-pre-wrap break-words text-zinc-300 border border-zinc-800">
+                              <div className="mt-1 rounded-lg bg-zinc-950 p-2 text-xs whitespace-pre-wrap break-words text-zinc-300 border border-zinc-800">
                                 {message.metadata.mcpResponse}
                               </div>
                             </div>
@@ -323,7 +327,7 @@ export default function ChatInterface() {
                   disabled={isLoading || !input.trim()}
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${
                     input.trim() && !isLoading
-                      ? "bg-indigo-500 text-white hover:bg-indigo-600"
+                      ? "bg-white text-zinc-900 hover:bg-zinc-100"
                       : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
                   }`}
                   type="button"

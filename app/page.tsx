@@ -23,10 +23,10 @@ export default function Home() {
                 />
               </div>
               <div className="leading-tight">
-                <p className="text-xs uppercase tracking-[0.3em] text-[#d2c5b6]">
+                <p className="text-xs tracking-[0.15em] text-[#d2c5b6]">
                   whatmeme
                 </p>
-                <p className="text-[11px] text-[#8e8377]">Latest Meme Trends & Funny Memes</p>
+                <p className="text-[11px] text-[#8e8377]">최신 밈 트렌드 & 재미있는 밈</p>
               </div>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
@@ -46,11 +46,11 @@ export default function Home() {
       <section className="mx-auto max-w-5xl px-6 pb-16">
         <div className="rounded-[28px] border border-white/10 bg-[#14110e] p-10 text-center">
           <p className="text-xs uppercase tracking-[0.35em] text-[#9b8f80]">PlayMCP</p>
-          <h2 className="font-display mt-4 text-3xl text-white">
+          <h2 className="mt-4 text-3xl text-white">
             Kakao PlayMCP에서도 이용하실 수 있습니다.
           </h2>
           <p className="mt-4 text-sm text-[#cfc4b6]">
-            카카오 생태계에서 바로 WhatMeme를 체험해보세요.
+            카카오 생태계에서 바로 whatmeme을 경험해보세요.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-[#e2d8cc] transition-colors hover:border-white/40 hover:text-white">
@@ -63,16 +63,16 @@ export default function Home() {
       <section className="mx-auto max-w-5xl px-6 pb-20">
         <div className="rounded-[28px] border border-white/10 bg-[#14110e] p-10 text-center">
           <p className="text-xs uppercase tracking-[0.35em] text-[#9b8f80]">Contact</p>
-          <h2 className="font-display mt-4 text-3xl text-white">문의하기</h2>
+          <h2 className="mt-4 text-3xl text-white">문의하기</h2>
           <p className="mt-4 text-sm text-[#cfc4b6]">
-            필요한 밈 리서치나 협업 요청이 있으면 바로 연락주세요.
+            필요한 밈 리서치 혹은 요청이 있으면 연락주세요.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <a
               href="mailto:woongaaaaa1@gmail.com"
               className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-[#e2d8cc] transition-colors hover:border-white/40 hover:text-white"
             >
-              상담 예약
+              woongaaaaaa1@gmail.com
             </a>
           </div>
         </div>

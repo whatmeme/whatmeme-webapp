@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WhatMeme - 한국 밈 트렌드 분석",
+  title: "whatmeme",
   description: "한국 밈 트렌드 분석 및 추천 서비스",
 };
 
