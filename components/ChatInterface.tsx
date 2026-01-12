@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { IoIosSend } from "react-icons/io";
 import QuickReplies from "./QuickReplies";
 
 interface Message {
@@ -78,13 +79,13 @@ export default function ChatInterface() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         let errorMessage = errorData.error || `서버 오류 (${response.status})`;
-        
+
         if (response.status === 429) {
           errorMessage = "⚠️ OpenAI API 쿼터가 초과되었습니다.\n\n계정의 결제 정보와 사용량을 확인해주세요:\nhttps://platform.openai.com/usage";
         } else if (response.status === 401) {
           errorMessage = "⚠️ OpenAI API 키가 유효하지 않습니다.\n\n.env.local 파일의 OPENAI_API_KEY를 확인해주세요.";
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -233,16 +234,14 @@ export default function ChatInterface() {
                       </div>
                     )}
                     <div
-                      className={`flex items-start space-x-3 px-2 py-1.5 hover:bg-zinc-900/30 rounded-md transition-colors duration-200 ${
-                        message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
-                      }`}
+                      className={`flex items-start space-x-3 px-2 py-1.5 hover:bg-zinc-900/30 rounded-md transition-colors duration-200 ${message.role === "user" ? "flex-row-reverse space-x-reverse" : ""
+                        }`}
                     >
                       <Avatar role={message.role} show={showAvatar} />
 
                       <div
-                        className={`flex flex-col min-w-0 flex-1 ${
-                          message.role === "user" ? "items-end" : "items-start"
-                        }`}
+                        className={`flex flex-col min-w-0 flex-1 ${message.role === "user" ? "items-end" : "items-start"
+                          }`}
                       >
                         {/* 발신자 이름 (그룹의 첫 메시지에만) */}
                         {showAvatar && message.role === "assistant" && (
@@ -253,11 +252,10 @@ export default function ChatInterface() {
 
                         {/* 메시지 버블 - shadcn/ui 스타일 */}
                         <div
-                          className={`max-w-[75%] px-5 py-3 text-[15px] leading-relaxed shadow-sm ${
-                            message.role === "user"
-                              ? "bg-white text-zinc-900 font-medium rounded-2xl rounded-tr-sm"
-                              : "bg-zinc-800/50 text-zinc-200 border border-white/5 rounded-2xl rounded-tl-sm"
-                          } ${isGrouped ? "mt-0.5" : ""}`}
+                          className={`max-w-[75%] px-5 py-3 text-[15px] leading-relaxed shadow-sm ${message.role === "user"
+                            ? "bg-[#f2ede4] text-[#1b0f0a] font-medium rounded-2xl rounded-tr-sm"
+                            : "bg-zinc-800/50 text-zinc-200 border border-white/5 rounded-2xl rounded-tl-sm"
+                            } ${isGrouped ? "mt-0.5" : ""}`}
                         >
                           <div className="whitespace-pre-wrap break-words">
                             {message.content}
@@ -325,16 +323,13 @@ export default function ChatInterface() {
                 <button
                   onClick={handleSend}
                   disabled={isLoading || !input.trim()}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${
-                    input.trim() && !isLoading
-                      ? "bg-white text-zinc-900 hover:bg-zinc-100"
-                      : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                  }`}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${input.trim() && !isLoading
+                    ? "bg-white text-zinc-900 hover:bg-zinc-100"
+                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                    }`}
                   type="button"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
+                  <IoIosSend className="h-4 w-4" />
                 </button>
               </div>
             </div>
