@@ -418,7 +418,6 @@ export async function POST(request: NextRequest) {
                 {
                   role: "tool",
                   tool_call_id: toolCallId,
-                  name: functionName,
                   content: toolResult,
                 },
               ],
