@@ -65,7 +65,7 @@ export default function Home() {
           <p className="text-xs uppercase tracking-[0.35em] text-[#9b8f80]">Contact</p>
           <h2 className="mt-4 text-3xl text-white">문의하기</h2>
           <p className="mt-4 text-sm text-[#cfc4b6]">
-            필요한 밈 리서치 혹은 요청이 있으면 연락주세요.
+            요청 사항 또는 피드백이 있으면 메일로 문의해주세요.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <a
