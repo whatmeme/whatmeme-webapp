@@ -466,7 +466,7 @@ export default function ChatInterface() {
                     {isStreaming ? (
                       <button
                         onClick={handleStop}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-zinc-900 transition-all duration-200 hover:bg-zinc-100"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#bcbcbc] text-zinc-900 transition-all duration-200 hover:bg-[#d0d0d0]"
                         type="button"
                       >
                         <FaRegStopCircle className="h-4 w-4" />
@@ -476,7 +476,7 @@ export default function ChatInterface() {
                         onClick={handleSend}
                         disabled={isLoading || !input.trim()}
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${input.trim() && !isLoading
-                          ? "bg-white text-zinc-900 hover:bg-zinc-100"
+                          ? "bg-[#bcbcbc] text-zinc-900 hover:bg-[#d0d0d0]"
                           : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
                           }`}
                         type="button"
