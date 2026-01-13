@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { IoIosSend } from "react-icons/io";
+import { FaRegStopCircle } from "react-icons/fa";
 import QuickReplies from "./QuickReplies";
 
 interface Message {
@@ -26,6 +27,7 @@ export default function ChatInterface() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoScrollRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const byteLimit = 60;
 
   const getByteLength = (value: string) => {
@@ -93,11 +95,16 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           messages: updatedMessages.map((msg) => ({
             role: msg.role,
@@ -181,6 +188,7 @@ export default function ChatInterface() {
         }
 
         setIsStreaming(false);
+        abortControllerRef.current = null;
       } else {
         const data = await response.json();
 
@@ -195,6 +203,12 @@ export default function ChatInterface() {
         setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setIsStreaming(false);
+        setIsLoading(false);
+        abortControllerRef.current = null;
+        return;
+      }
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -209,6 +223,15 @@ export default function ChatInterface() {
         textareaRef.current?.focus();
       });
     }
+  };
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+    setIsLoading(false);
   };
 
   const handleSend = async () => {
@@ -432,7 +455,7 @@ export default function ChatInterface() {
                     />
                     {!input && (
                       <div className="pointer-events-none absolute inset-0 flex items-center text-[16px] font-medium text-zinc-500 sm:text-sm">
-                        메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)
+                        메시지를 입력하세요
                       </div>
                     )}
                   </div>
@@ -440,17 +463,27 @@ export default function ChatInterface() {
                     <span className="text-[11px] text-zinc-500 tabular-nums">
                       {getByteLength(input)}/{byteLimit} bytes
                     </span>
-                    <button
-                      onClick={handleSend}
-                      disabled={isLoading || !input.trim()}
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${input.trim() && !isLoading
-                        ? "bg-white text-zinc-900 hover:bg-zinc-100"
-                        : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                        }`}
-                      type="button"
-                    >
-                      <IoIosSend className="h-4 w-4" />
-                    </button>
+                    {isStreaming ? (
+                      <button
+                        onClick={handleStop}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-zinc-900 transition-all duration-200 hover:bg-zinc-100"
+                        type="button"
+                      >
+                        <FaRegStopCircle className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleSend}
+                        disabled={isLoading || !input.trim()}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${input.trim() && !isLoading
+                          ? "bg-white text-zinc-900 hover:bg-zinc-100"
+                          : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                          }`}
+                        type="button"
+                      >
+                        <IoIosSend className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
