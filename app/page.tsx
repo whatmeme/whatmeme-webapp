@@ -1,6 +1,7 @@
 "use client";
 
 import ChatInterface from "@/components/ChatInterface";
+import { IoChevronUpCircleSharp } from "react-icons/io5";
 
 export default function Home() {
   return (
@@ -43,10 +44,10 @@ export default function Home() {
         </section>
       </div>
 
-      <section className="mx-auto max-w-5xl px-6 pb-16">
-        <div className="rounded-[28px] border border-white/10 bg-[#14110e] p-10 text-center">
+      <section className="mx-auto flex min-h-[100svh] max-w-5xl flex-col justify-center gap-12 px-6 py-16 sm:gap-16 sm:py-24">
+        <div className="rounded-[28px] border border-white/10 bg-[#14110e] p-10 text-center sm:p-12">
           <p className="text-xs uppercase tracking-[0.35em] text-[#9b8f80]">PlayMCP</p>
-          <h2 className="mt-4 text-3xl text-white">
+          <h2 className="mt-4 text-2xl text-white sm:text-3xl">
             Kakao PlayMCP에서도 이용하실 수 있습니다.
           </h2>
           <p className="mt-4 text-sm text-[#cfc4b6]">
@@ -58,12 +59,10 @@ export default function Home() {
             </button>
           </div>
         </div>
-      </section>
 
-      <section className="mx-auto max-w-5xl px-6 pb-20">
-        <div className="rounded-[28px] border border-white/10 bg-[#14110e] p-10 text-center">
+        <div className="rounded-[28px] border border-white/10 bg-[#14110e] p-10 text-center sm:p-12">
           <p className="text-xs uppercase tracking-[0.35em] text-[#9b8f80]">Contact</p>
-          <h2 className="mt-4 text-3xl text-white">문의하기</h2>
+          <h2 className="mt-4 text-2xl text-white sm:text-3xl">문의하기</h2>
           <p className="mt-4 text-sm text-[#cfc4b6]">
             요청 사항 또는 피드백이 있으면 메일로 문의해주세요.
           </p>
@@ -75,6 +74,19 @@ export default function Home() {
               woongaaaaaa1@gmail.com
             </a>
           </div>
+        </div>
+
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="inline-flex items-center gap-2 text-sm text-[#cfc4b6] transition-colors hover:text-white"
+          >
+            <IoChevronUpCircleSharp className="h-8 w-8" />
+            맨 위로
+          </button>
         </div>
       </section>
     </div>
