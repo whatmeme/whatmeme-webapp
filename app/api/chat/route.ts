@@ -76,6 +76,13 @@ const STATIC_MCP_TOOLS = [
   },
 ];
 
+// 개발 환경에서만 로그 출력
+function logDev(...args: any[]) {
+  if (process.env.NODE_ENV === "development") {
+    console.log(...args);
+  }
+}
+
 // SSE 형식 응답 파싱
 function parseSSEResponse(text: string): any {
   // SSE 형식: "event: message\ndata: {...}\n\n"
@@ -110,9 +117,7 @@ async function callMCPServer(method: string, params?: any) {
   }
 
   // 개발 환경에서만 상세 로깅
-  if (process.env.NODE_ENV === "development") {
-    console.log(`MCP 요청 [${method}]:`, JSON.stringify(mcpRequest, null, 2));
-  }
+  logDev(`MCP 요청 [${method}]:`, JSON.stringify(mcpRequest, null, 2));
 
   const response = await fetch(MCP_SERVER_URL, {
     method: "POST",
@@ -141,17 +146,13 @@ async function callMCPServer(method: string, params?: any) {
       if (textContent.includes('event:') && textContent.includes('data:')) {
         const parsedData = parseSSEResponse(textContent);
         if (parsedData) {
-          if (process.env.NODE_ENV === "development") {
-            console.log(`MCP 응답 [${method}] (SSE 파싱됨):`, JSON.stringify(parsedData, null, 2));
-          }
+          logDev(`MCP 응답 [${method}] (SSE 파싱됨):`, JSON.stringify(parsedData, null, 2));
           return parsedData;
         }
       }
     }
     
-    if (process.env.NODE_ENV === "development") {
-      console.log(`MCP 응답 [${method}]:`, JSON.stringify(data, null, 2));
-    }
+    logDev(`MCP 응답 [${method}]:`, JSON.stringify(data, null, 2));
     return data;
   }
 
@@ -162,9 +163,7 @@ async function callMCPServer(method: string, params?: any) {
   if (text.includes('event:') && text.includes('data:')) {
     const parsedData = parseSSEResponse(text);
     if (parsedData) {
-      if (process.env.NODE_ENV === "development") {
-        console.log(`MCP 응답 [${method}] (SSE 파싱됨):`, JSON.stringify(parsedData, null, 2));
-      }
+      logDev(`MCP 응답 [${method}] (SSE 파싱됨):`, JSON.stringify(parsedData, null, 2));
       return parsedData;
     }
   }
@@ -172,9 +171,7 @@ async function callMCPServer(method: string, params?: any) {
   // 일반 JSON 파싱 시도
   try {
     const data = JSON.parse(text);
-    if (process.env.NODE_ENV === "development") {
-      console.log(`MCP 응답 [${method}]:`, JSON.stringify(data, null, 2));
-    }
+    logDev(`MCP 응답 [${method}]:`, JSON.stringify(data, null, 2));
     return data;
   } catch {
     return {
@@ -262,7 +259,7 @@ export async function POST(request: NextRequest) {
     const mcpTools = await getMCPTools();
     const tools = mcpTools.map(convertMCPToolToOpenAITool);
 
-    console.log(`사용 가능한 MCP 도구: ${tools.length}개`);
+    logDev(`사용 가능한 MCP 도구: ${tools.length}개`);
 
     const systemPrompt = `당신은 한국 밈 트렌드 분석 전문가입니다. 사용자의 질문에 답하기 위해 MCP 도구를 사용할 수 있습니다.
         
@@ -328,7 +325,7 @@ export async function POST(request: NextRequest) {
               functionArgs = {};
             }
 
-            console.log(`도구 호출: ${functionName}`, functionArgs);
+            logDev(`도구 호출: ${functionName}`, functionArgs);
 
             const toolResult = await executeMCPTool(functionName, functionArgs);
 

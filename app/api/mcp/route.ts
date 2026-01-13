@@ -3,6 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 // MCP 서버 URL (환경 변수에서 가져오거나 기본값 사용)
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL || "https://sx8ajmutmd.us-east-1.awsapprunner.com/mcp";
 
+// 개발 환경에서만 로그 출력
+function logDev(...args: any[]) {
+  if (process.env.NODE_ENV === "development") {
+    console.log(...args);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -16,7 +23,7 @@ export async function POST(request: NextRequest) {
       id: Date.now(),
     };
 
-    console.log("MCP 요청:", JSON.stringify(mcpRequest, null, 2));
+    logDev("MCP 요청:", JSON.stringify(mcpRequest, null, 2));
 
     // MCP 서버에 요청 전송
     // StreamableHTTPServerTransport는 application/json과 text/event-stream 둘 다 Accept 헤더에 필요
@@ -29,8 +36,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(mcpRequest),
     });
 
-    console.log("MCP 응답 상태:", response.status);
-    console.log("MCP 응답 헤더:", Object.fromEntries(response.headers.entries()));
+    logDev("MCP 응답 상태:", response.status);
+    logDev("MCP 응답 헤더:", Object.fromEntries(response.headers.entries()));
 
     // 응답 상태 확인
     if (!response.ok) {
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
     // JSON 응답 처리
     if (contentType.includes("application/json")) {
       const data = await response.json();
-      console.log("MCP JSON 응답:", JSON.stringify(data, null, 2));
+      logDev("MCP JSON 응답:", JSON.stringify(data, null, 2));
       
       // MCP 응답 형식 확인
       if (data.error) {
