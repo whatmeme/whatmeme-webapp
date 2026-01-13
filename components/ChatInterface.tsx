@@ -437,8 +437,8 @@ export default function ChatInterface() {
           <div className="mx-auto max-w-4xl">
             <div className="w-full bg-zinc-900/50 border border-zinc-800 focus-within:ring-2 focus-within:ring-white/20 focus-within:border-white/20 rounded-xl transition-all duration-300 shadow-[0_0_50px_-12px_rgb(0,0,0,0.25)]">
               <div className="flex flex-col gap-2 p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="relative flex-1">
+                <div className="flex min-w-0 items-center space-x-3">
+                  <div className="relative min-w-0 flex-1">
                     <textarea
                       ref={textareaRef}
                       value={input}
@@ -448,7 +448,7 @@ export default function ChatInterface() {
                         setInput(nextValue);
                       }}
                       onKeyDown={handleKeyDown}
-                      className="w-full resize-none border-0 bg-transparent py-3 text-[16px] font-medium leading-6 text-zinc-100 focus:outline-none focus:ring-0 sm:text-sm"
+                    className="w-full min-w-0 resize-none border-0 bg-transparent py-3 text-[16px] font-medium leading-6 text-zinc-100 focus:outline-none focus:ring-0 sm:text-sm"
                       rows={1}
                       disabled={isLoading}
                       style={{ maxHeight: "200px" }}
@@ -459,7 +459,7 @@ export default function ChatInterface() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <span className="text-[11px] text-zinc-500 tabular-nums">
                       {getByteLength(input)}/{byteLimit} bytes
                     </span>
