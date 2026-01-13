@@ -9,20 +9,71 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-type ToolsCache = { tools: any[]; fetchedAt: number };
-const globalForMcp = globalThis as typeof globalThis & {
-  __mcpToolsCache?: ToolsCache | null;
-  __mcpToolsRefreshPromise?: Promise<any[]> | null;
-};
-
-const getToolsCache = () => globalForMcp.__mcpToolsCache ?? null;
-const setToolsCache = (cache: ToolsCache | null) => {
-  globalForMcp.__mcpToolsCache = cache;
-};
-const getToolsRefreshPromise = () => globalForMcp.__mcpToolsRefreshPromise ?? null;
-const setToolsRefreshPromise = (promise: Promise<any[]> | null) => {
-  globalForMcp.__mcpToolsRefreshPromise = promise;
-};
+const STATIC_MCP_TOOLS = [
+  {
+    name: "check_meme_status",
+    description:
+      "밈의 현재 유행/트렌딩 상태를 5단계로 답합니다\n(🔥: 80~100점 / ⚡: 60~80점 / ⚖️: 40~60점 / 🧊: 20~40점 / ❄️: 0~20점)\n\n예시 질문: \"매끈매끈하다 밈 핫해?\", \"골반춤 밈 유행이야?\", \"요즘 럭키비키 밈 식었어?\"",
+    inputSchema: {
+      type: "object",
+      properties: {
+        keyword: {
+          type: "string",
+          description: "검색할 밈 키워드 또는 질문",
+        },
+      },
+      required: ["keyword"],
+    },
+  },
+  {
+    name: "get_trending_memes",
+    description:
+      "현재 트렌딩 TOP 5 밈 목록을 반환합니다.\n\n예시 질문: \"최신 밈 알려줘\", \"요즘 핫한 밈 뭐야?\", \"지금 유행하는 밈 뭐 있어?\"",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "recommend_meme_for_context",
+    description:
+      "주어진 상황에 맞는 밈을 추천합니다.\n\n예시 질문: \"시험 스트레스 받을 때 밈\", \"신날 때 쓰는 밈 뭐있어?\", \"합의 없이 결론을 멋대로 지을 때 밈 추천해줘\"",
+    inputSchema: {
+      type: "object",
+      properties: {
+        situation: {
+          type: "string",
+          description: "상황 설명",
+        },
+      },
+      required: ["situation"],
+    },
+  },
+  {
+    name: "search_meme_meaning",
+    description:
+      "밈의 뜻/유래/사용예시를 설명합니다.\n\n예시 질문: \"매끈매끈하다 밈 알아?\", \"골반춤 밈이 뭐야?\", \"럭키비키 밈 알려줘\"",
+    inputSchema: {
+      type: "object",
+      properties: {
+        keyword: {
+          type: "string",
+          description: "검색할 밈 키워드 또는 질문",
+        },
+      },
+      required: ["keyword"],
+    },
+  },
+  {
+    name: "get_random_meme",
+    description:
+      "랜덤으로 밈 하나를 선택해서 뜻/유래/예시를 보여줍니다.\n\n예시 질문: \"밈 아무거나 알려줘\", \"밈 하나 추천해줘\", \"밈 랜덤 추천\"",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+];
 
 // SSE 형식 응답 파싱
 function parseSSEResponse(text: string): any {
@@ -135,54 +186,9 @@ async function callMCPServer(method: string, params?: any) {
   }
 }
 
-// MCP 도구 목록 가져오기
+// MCP 도구 목록 고정값 사용
 async function getMCPTools() {
-  const cached = getToolsCache();
-  if (cached) {
-    return cached.tools;
-  }
-
-  const inFlight = getToolsRefreshPromise();
-  if (inFlight) {
-    return await inFlight;
-  }
-
-  const refreshPromise = (async () => {
-  try {
-    // MCP 프로토콜: tools/list는 params 없이 호출
-    const response = await callMCPServer("tools/list");
-    
-    if (process.env.NODE_ENV === "development") {
-      console.log("MCP tools/list 응답:", JSON.stringify(response, null, 2));
-    }
-    
-    // MCP 프로토콜 응답 형식 확인
-    if (response.error) {
-      console.error("MCP 오류:", response.error);
-      return [];
-    }
-    
-    // result.tools 또는 tools 직접 확인
-    // SSE 파싱 후에는 result.result.tools 구조일 수 있음
-    const tools = response.result?.tools || 
-                  response.result?.result?.tools || 
-                  response.tools || 
-                  [];
-    console.log(`MCP 도구 ${tools.length}개 발견`);
-    if (tools.length > 0) {
-      setToolsCache({ tools, fetchedAt: Date.now() });
-    }
-    return tools;
-  } catch (error) {
-    console.error("MCP 도구 목록 가져오기 실패:", error);
-    return getToolsCache()?.tools || [];
-  } finally {
-    setToolsRefreshPromise(null);
-  }
-  })();
-
-  setToolsRefreshPromise(refreshPromise);
-  return await refreshPromise;
+  return STATIC_MCP_TOOLS;
 }
 
 // MCP 도구를 OpenAI Tool 형식으로 변환
@@ -253,58 +259,6 @@ export async function POST(request: NextRequest) {
 
     // MCP 도구 목록 가져오기
     const mcpTools = await getMCPTools();
-    
-    // 도구가 없으면 기본 도구 목록 사용 (폴백)
-    if (mcpTools.length === 0) {
-      console.warn("MCP 도구를 가져올 수 없어 기본 도구 목록을 사용합니다.");
-      // 기본 도구 목록 (하드코딩)
-      mcpTools.push(
-        {
-          name: "check_meme_status",
-          description: "밈의 현재 유행/트렌딩 상태를 5단계로 답합니다",
-          inputSchema: {
-            type: "object",
-            properties: {
-              keyword: { type: "string", description: "검색할 밈 키워드" },
-            },
-            required: ["keyword"],
-          },
-        },
-        {
-          name: "get_trending_memes",
-          description: "현재 트렌딩 TOP 5 밈 목록을 반환합니다",
-          inputSchema: { type: "object", properties: {} },
-        },
-        {
-          name: "recommend_meme_for_context",
-          description: "주어진 상황에 맞는 밈을 추천합니다",
-          inputSchema: {
-            type: "object",
-            properties: {
-              situation: { type: "string", description: "상황 설명" },
-            },
-            required: ["situation"],
-          },
-        },
-        {
-          name: "search_meme_meaning",
-          description: "밈의 뜻/유래/사용예시를 설명합니다",
-          inputSchema: {
-            type: "object",
-            properties: {
-              keyword: { type: "string", description: "검색할 밈 키워드" },
-            },
-            required: ["keyword"],
-          },
-        },
-        {
-          name: "get_random_meme",
-          description: "랜덤으로 밈 하나를 선택해서 뜻/유래/예시를 보여줍니다",
-          inputSchema: { type: "object", properties: {} },
-        }
-      );
-    }
-    
     const tools = mcpTools.map(convertMCPToolToOpenAITool);
 
     console.log(`사용 가능한 MCP 도구: ${tools.length}개`);

@@ -26,6 +26,31 @@ export default function ChatInterface() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autoScrollRef = useRef(true);
+  const byteLimit = 60;
+
+  const getByteLength = (value: string) => {
+    let total = 0;
+    for (const ch of value) {
+      const code = ch.charCodeAt(0);
+      total += code <= 0x7f ? 1 : 2;
+    }
+    return total;
+  };
+
+  const clampToBytes = (value: string, limit: number) => {
+    if (getByteLength(value) <= limit) {
+      return value;
+    }
+    let result = "";
+    for (const ch of value) {
+      const next = result + ch;
+      if (getByteLength(next) > limit) {
+        break;
+      }
+      result = next;
+    }
+    return result;
+  };
 
   // 메시지가 추가될 때마다 스크롤
   useEffect(() => {
@@ -50,7 +75,7 @@ export default function ChatInterface() {
   }, [input]);
 
   const sendMessage = async (messageText: string) => {
-    const trimmedInput = messageText.trim();
+    const trimmedInput = clampToBytes(messageText.trim(), byteLimit);
     if (!trimmedInput || isLoading) {
       return;
     }
@@ -388,30 +413,46 @@ export default function ChatInterface() {
         <div className="p-5">
           <div className="mx-auto max-w-4xl">
             <div className="w-full bg-zinc-900/50 border border-zinc-800 focus-within:ring-2 focus-within:ring-white/20 focus-within:border-white/20 rounded-xl transition-all duration-300 shadow-[0_0_50px_-12px_rgb(0,0,0,0.25)]">
-              <div className="flex items-center space-x-3 p-4">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)"
-                  className="flex-1 resize-none border-0 bg-transparent py-2 text-sm font-medium leading-6 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-0"
-                  rows={1}
-                  disabled={isLoading}
-                  style={{ maxHeight: "200px" }}
-                />
-
-                <button
-                  onClick={handleSend}
-                  disabled={isLoading || !input.trim()}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${input.trim() && !isLoading
-                    ? "bg-white text-zinc-900 hover:bg-zinc-100"
-                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                    }`}
-                  type="button"
-                >
-                  <IoIosSend className="h-4 w-4" />
-                </button>
+              <div className="flex flex-col gap-2 p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="relative flex-1">
+                    <textarea
+                      ref={textareaRef}
+                      value={input}
+                      onChange={(e) => {
+                        const rawValue = e.target.value;
+                        const nextValue = clampToBytes(rawValue, byteLimit);
+                        setInput(nextValue);
+                      }}
+                      onKeyDown={handleKeyDown}
+                      className="w-full resize-none border-0 bg-transparent py-3 text-[16px] font-medium leading-6 text-zinc-100 focus:outline-none focus:ring-0 sm:text-sm"
+                      rows={1}
+                      disabled={isLoading}
+                      style={{ maxHeight: "200px" }}
+                    />
+                    {!input && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center text-[16px] font-medium text-zinc-500 sm:text-sm">
+                        메시지 입력... (Enter 전송, Shift+Enter 줄바꿈)
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-zinc-500 tabular-nums">
+                      {getByteLength(input)}/{byteLimit} bytes
+                    </span>
+                    <button
+                      onClick={handleSend}
+                      disabled={isLoading || !input.trim()}
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${input.trim() && !isLoading
+                        ? "bg-white text-zinc-900 hover:bg-zinc-100"
+                        : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                        }`}
+                      type="button"
+                    >
+                      <IoIosSend className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

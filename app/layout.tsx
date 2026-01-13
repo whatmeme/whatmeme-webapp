@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   description: "한국 밈 트렌드 분석 및 추천 서비스",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
