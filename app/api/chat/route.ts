@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import type { ChatCompletionTool } from "openai/resources/chat/completions";
 
 // MCP 서버 URL
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL || "https://sx8ajmutmd.us-east-1.awsapprunner.com/mcp";
@@ -192,9 +193,9 @@ async function getMCPTools() {
 }
 
 // MCP 도구를 OpenAI Tool 형식으로 변환
-function convertMCPToolToOpenAITool(tool: any) {
+function convertMCPToolToOpenAITool(tool: any): ChatCompletionTool {
   return {
-    type: "function",
+    type: "function" as const,
     function: {
       name: tool.name,
       description: tool.description,
