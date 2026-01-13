@@ -54,9 +54,14 @@ export default function Home() {
             카카오 생태계에서 바로 whatmeme을 경험해보세요.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <button className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-[#e2d8cc] transition-colors hover:border-white/40 hover:text-white">
+            <a
+              href="https://playmcp.kakao.com/mcp/385"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-[#e2d8cc] transition-colors hover:border-white/40 hover:text-white"
+            >
               PlayMCP에서 사용해 보기
-            </button>
+            </a>
           </div>
         </div>
 
