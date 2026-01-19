@@ -412,7 +412,7 @@ export default function ChatInterface() {
                 <div className="flex items-start space-x-3 px-2 py-1.5">
                   <Avatar role="assistant" show={true} />
                   <div className="flex flex-col">
-                    <span className="mb-1 text-xs font-bold text-zinc-200">WhatMeme Bot</span>
+                    <span className="mb-1 text-xs font-bold text-zinc-200">whatmeme bot</span>
                     <div className="bg-zinc-800/50 text-zinc-200 border border-white/5 rounded-2xl rounded-tl-sm px-5 py-3 shadow-sm">
                       <div className="flex space-x-1.5">
                         <div className="h-2 w-2 animate-bounce rounded-full bg-zinc-400 [animation-delay:-0.3s]"></div>
