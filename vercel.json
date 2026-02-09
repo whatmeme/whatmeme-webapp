@@ -1,8 +1,0 @@
-{
-  "version": 2,
-  "framework": "nextjs",
-  "regions": ["icn1"],
-  "env": {
-    "MCP_SERVER_URL": "https://sx8ajmutmd.us-east-1.awsapprunner.com/mcp"
-  }
-}
