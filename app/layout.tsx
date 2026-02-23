@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GoatCounter } from "../components/GoatCounter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="ko" className="h-full">
       <body className="h-full font-sans antialiased">
         {children}
+        <GoatCounter />
       </body>
     </html>
   );

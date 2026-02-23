@@ -1,6 +1,6 @@
 "use client";
 
-import ChatInterface from "@/components/ChatInterface";
+import ChatInterface from "../components/ChatInterface";
 import { IoChevronUpCircleSharp } from "react-icons/io5";
 
 export default function Home() {
