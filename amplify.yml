@@ -6,6 +6,8 @@ frontend:
         - npm ci
     build:
       commands:
+        # Amplify 콘솔 환경 변수를 .env.production에 넣어서 Next.js API 라우트 런타임에서 사용
+        - env | grep -e OPENAI_API_KEY -e OPENAI_MODEL -e MCP_SERVER_URL >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next
