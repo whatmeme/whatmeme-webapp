@@ -5,10 +5,14 @@ import type { ChatCompletionTool } from "openai/resources/chat/completions";
 // MCP 서버 URL
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL || "https://sx8ajmutmd.us-east-1.awsapprunner.com/mcp";
 
-// OpenAI 클라이언트 초기화
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAI 클라이언트는 API 키 확인 후 생성 (모듈 로드 시 키 없으면 크래시 방지)
+function getOpenAI(): OpenAI {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) {
+    throw new Error("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다. Amplify 콘솔 → 환경 변수에서 설정 후 다시 배포해주세요.");
+  }
+  return new OpenAI({ apiKey: key });
+}
 
 const STATIC_MCP_TOOLS = [
   {
@@ -247,13 +251,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // OpenAI API 키 확인
+    // OpenAI API 키 확인 (키 없이 new OpenAI() 호출 시 모듈 로드 단계에서 크래시하므로 여기서 검사)
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY 환경 변수가 설정되지 않았습니다." },
+        { error: "OPENAI_API_KEY 환경 변수가 설정되지 않았습니다. Amplify 콘솔 → 환경 변수에서 설정 후 다시 배포해주세요." },
         { status: 500 }
       );
     }
+
+    const openai = getOpenAI();
 
     // MCP 도구 목록 가져오기
     const mcpTools = await getMCPTools();
